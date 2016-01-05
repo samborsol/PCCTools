@@ -1,11 +1,11 @@
-### PCCTools
-#Checkout instructions on lxplus:  
+## PCCTools
+####Checkout instructions on lxplus:  
 cmsrel CMSSW_7_6_1  
 cd CMSSW_7_6_1/src/  
 cmsenv  
   
   
-#Basic Git Instructions
+####Basic Git Instructions
 
 0. Create your own fork of CMS-LUMI-POG/PCCTools (upper right)
 1. Do your analysis in your fork  
@@ -22,7 +22,7 @@ cmsenv
   a) add detail here  
   
   
-#Instructions for producing PCC ntuples:
+####Instructions for producing PCC ntuples:
 
 cmsrel CMSSW_7_6_X  
 cd CMSSW_7_6_X/src  
