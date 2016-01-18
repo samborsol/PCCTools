@@ -2,7 +2,7 @@ import ROOT
 import sys, os
 import math
 
-ROOT.gROOT.SetBatch(ROOT.kTRUE)
+#ROOT.gROOT.SetBatch(ROOT.kTRUE)
 
 def round_to_1(x):
     return round(x, -int(math.floor(math.log10(x))))
@@ -19,17 +19,64 @@ def SetNBX():
 #    lumiVars["PC_lumi_layer2"]["nBX"]=tree.nBX
 
 
+def FindOffset(list1,list2):
+    if len(list1)!=len(list2):
+        print "List lengths are different",len(list1),len(list2)
+        return 0
+
+    list1.sort()
+    list2.sort()
+
+    testVal=list1[0]-list2[0]
+
+    #print "testVal",testVal
+    #print list1
+    #print list2
+    for iList in range(len(list1)):
+        if list1[iList]!=list2[iList]+testVal:
+            print iList, list1[iList], list2[iList]
+    
+    return testVal
+
 if len(sys.argv) <2:
     print "Please give the root as an argument"
+
+useAllRuns=True
+#runs=[251131,251134,251244,251252,251496,251500,251559,251562,251638,251643,251883]
+#runs=[251131,251134,251244,251252]
+runs=[256729]
 
 fileName=sys.argv[1]
 print fileName
 tFile=ROOT.TFile.Open(fileName)
 tree=tFile.Get("certtree")
 
-# FIXME make dir if not there already
-outDir="plots/"
+#corrFileName="corr4/Overall_Correction_256729_3percent.root"
+#corrFileName="splitCorr/correction_type/Overall_Correction_256729_noType1.root"
+#corrFileName="new_procedure/Overall_Correction_256729_newest.root"
+corrFileName="../PCLumiProd/Overall_Correction_256729.root"
+try:
+    corrFileName=sys.argv[2]
+except:
+    print "Correction file not given.  Using",corrFileName
+corrTFile=ROOT.TFile.Open(corrFileName)
 
+# FIXME make dir if not there already
+outDir="plots/"+fileName.split(".")[0]
+outDir="plots"
+
+doFits=True
+findOffsets=True # wrt BCM1F (or HF if no BCM1F)
+corrPCC=True
+
+if corrPCC:
+    outDir=outDir+"corrections_smalltest/"
+else:
+    outDir=outDir+"_NoCorr/"
+
+if not os.path.exists(outDir):
+    os.mkdir(outDir)
+    print outDir,"didn't exist but now...",os.path.exists(outDir)
 
 lumiVars={}
 lumiVars["HFLumi_perBX"]={}
@@ -69,9 +116,8 @@ lumiVars["PC_lumi_B3p8_perBX"]["activeBX"]={}
 nEntries=tree.GetEntries()
 # how many LSs to group together
 nLS=200
-minPCC=20
-doFits=False
-corrPCC=True
+minPCC=10
+
 
 timeOrderedEntries=[]
 runLSToEntry={}
@@ -93,6 +139,9 @@ runLSKeys.sort()
 for runLS in runLSKeys:
     timeOrderedEntries.append(runLSToEntry[runLS])
 
+
+if useAllRuns:
+    runs=maxLSInRun.keys()
 
 
 prevLSKey=[-99,-99]
@@ -152,20 +201,6 @@ for iOrdered in timeOrderedEntries:
     LSperRun=LSperRun+1
 
 
-#for run in maxLSInRun:
-#    for lumiType in lumiVars:
-#        print lumiType,lumiVars[lumiType]["activeBX"][tree.run]
-
-
-
-#for run in activeBXFromHF:
-#    print "are active in HF and PC the same in",run
-#    activeBXFromHF[run].sort()
-#    activeBXFromPC[run].sort()
-#    print activeBXFromHF[run]
-#    print activeBXFromPC[run]
-#    print "==?",activeBXFromHF[run]==activeBXFromPC[run]
-
 
 # find solo bunches and trains
 runsWith50ns=[254833]
@@ -174,6 +209,26 @@ for run in maxLSInRun:
     for lumiType in lumiVars:
         print lumiType,run,len(lumiVars[lumiType]["activeBX"][run])
         print lumiVars[lumiType]["activeBX"][run]
+
+
+for lumiType in lumiVars:
+    lumiVars[lumiType]["offsets"]={}
+    for run in maxLSInRun:
+        lumiVars[lumiType]["offsets"][run]=0
+if findOffsets:
+    for lumiType in lumiVars:
+        for run in maxLSInRun:
+            std="BCMFLumi_perBX"
+            if lumiType == std:
+                continue
+            lumiVars[lumiType]["offsets"][run]=FindOffset(lumiVars[lumiType]["activeBX"][run],lumiVars[std]["activeBX"][run])
+
+
+print "offsets"
+for lumiType in lumiVars:
+    print lumiType, lumiVars[lumiType]["offsets"]
+
+raw_input()
 
 
 soloBunches={}
@@ -185,7 +240,7 @@ for run in maxLSInRun:
     bunchTrains[run]={}
     bxList=[]
     deltaBX=1
-    if run in runsWith50ns:
+    if run in runsWith50ns or run < 253000:
         deltaBX=2
     for bx in lumiVars["HFLumi_perBX"]["activeBX"][run]:
         if prevBunch!=-99:
@@ -231,7 +286,8 @@ norms["PLTLumi_perBX"]={}
 norms["PC_lumi_B3p8_perBX"]={}
 
 
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     for histKey in hists:
         nBins=int(maxLSInRun[run])/int(nLS)+1
         #maxLSVal=float(nBins*nLS)
@@ -257,16 +313,10 @@ for run in maxLSInRun.keys():
 
 
 
-
 print "Looping for filling plots,",nEntries
-#tree.SetBranchStatus("HFLumi_perBX",1)
-#tree.SetBranchStatus("BCMFLumi_perBX",1)
-#tree.SetBranchStatus("PLTLumi_perBX",1)
-#tree.SetBranchStatus("PC_lumi_B3p8_perBX",1)
-
-
+raw_input()
 # need to rebin the lumi data (done this way mainly for PClumi)
-testLimit=-1
+testLimit=100
 iCount=0
 for iOrdered in timeOrderedEntries:
     if iCount>testLimit and testLimit>0:
@@ -276,6 +326,16 @@ for iOrdered in timeOrderedEntries:
     iCount=iCount+1
     tree.GetEntry(iOrdered)
     SetNBX()
+    if tree.run not in runs:
+        continue
+    else:
+        corrHistName="Ratio_Correction_"+str(tree.run)
+        try:
+            corrTH1F=corrTFile.Get(corrHistName)
+        except:
+            print "can't open",corrHistName
+                
+
     for histType in hists:
         #print histType,lumiVars[histType]["nBX"]
         for ibx in range(lumiVars[histType]["nBX"]):
@@ -294,16 +354,28 @@ for iOrdered in timeOrderedEntries:
                 # total is about 12% after bunch train ends -- approximating 
                 lumiVal=lumiVars[histType]["lumi"][ibx]
                 if histType.find("PC")!=-1 and corrPCC:
-                    if lumiVars[histType]["BX"][ibx]-1 in lumiVars[histType]["activeBX"][tree.run]:
-                        prevLumiVal=lumiVars[histType]["lumi"][ibx-1]
-                        #lumiVal=lumiVal/1.12
-                        lumiVal=lumiVal-lumiVal*0.06-prevLumiVal*0.06
-                        #lumiVal=lumiVal-lumiVal*0.04-prevLumiVal*0.08
-                        #lumiVal=lumiVal-prevLumiVal*0.12
+                    try:
+                        #print lumiVal, ibx, lumiVars[histType]["BX"][ibx], corrTH1F.GetBinContent(lumiVars[histType]["BX"][ibx]+1)
+                        lumiVal=lumiVal-lumiVal*corrTH1F.GetBinContent(lumiVars[histType]["BX"][ibx]+1)
+                        #print lumiVal
+                    except:
+                        print "Probably no correction for run ",tree.run
+                    #if lumiVars[histType]["BX"][ibx]-1 in lumiVars[histType]["activeBX"][tree.run]:
+                    #    #prevLumiVal=lumiVars[histType]["lumi"][ibx-1]
+                    #    #lumiVal=lumiVal/1.12
+                    #    #lumiVal=lumiVal-lumiVal*0.06-prevLumiVal*0.06
+                    #    print lumiVal, ibx, corrTH1F.GetBinContent(ibx)
+                    #    lumiVal=lumiVal-lumiVal*corrTH1F.GetBinContent(ibx)
+                    #    print lumiVal, ibx
+                    #    #lumiVal=lumiVal-lumiVal*0.04-prevLumiVal*0.08
+                    #    #lumiVal=lumiVal-prevLumiVal*0.12
                     
-                hists[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1,lumiVal)
-                norms[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1,1.0)
-
+                #if histType.find("PC")!=-1:
+                #    hists[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1-231,lumiVal)
+                #    norms[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1-231,1.0)
+                #else:    
+                hists[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1-lumiVars[histType]["offsets"][tree.run],lumiVal)
+                norms[histType][str(tree.run)+"2d"].Fill(tree.LS,lumiVars[histType]["BX"][ibx]-1-lumiVars[histType]["offsets"][tree.run],1.0)
 
 can=ROOT.TCanvas("can","",700,700)
 colors=[633,417,601,401,403,801]
@@ -311,7 +383,8 @@ styles=[24,25,26,27,28]
 
 
 # renormalize data
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     for histType in hists:
         hists[histType][str(run)+"2d"].Divide(norms[histType][str(run)+"2d"])
         hists[histType][str(run)+"2d"].Draw("colz")
@@ -324,9 +397,9 @@ for run in maxLSInRun.keys():
         can.SaveAs(outDir+histType+str(run)+"2dnorm.png")
         #can.SaveAs(outDir+histType+str(run)+"2dnorm.C")
 
-
 ## fill instantaneous rate plots
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     nBins=int(maxLSInRun[run])/int(nLS)+1
     for iLS in range(1,nBins+1):
         for iTrain in bunchTrains[run]:
@@ -344,12 +417,12 @@ for run in maxLSInRun.keys():
                     name=name+"0"
                 name=name+str(iLS)
                 nBunch=len(bunchTrains[run][iTrain])
-                print name,run,iPlot
+                #print name,run,iPlot
                 iBX=1
                 hists[histType][name].SetMarkerColor(colors[iPlot%len(colors)])
                 hists[histType][name].SetMarkerStyle(styles[iPlot%len(styles)])
                 for BX in bunchTrains[run][iTrain]: 
-                    print "bin content at",iBX,hists[histType][str(run)+"2d"].GetBinContent(iLS,BX)
+                    #print "bin content at",iBX,hists[histType][str(run)+"2d"].GetBinContent(iLS,BX)
                     hists[histType][name].SetBinContent(iBX,hists[histType][str(run)+"2d"].GetBinContent(iLS,BX))
                     # FIXME need to update error calculation
                     #if histType.find("PC")!=-1 and norms[histType][str(run)+"2d"].GetBinContent(iLS,BX) > 0:
@@ -360,7 +433,8 @@ for run in maxLSInRun.keys():
                 iPlot=iPlot+1
 
 ## plot SBIL 
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     nBins=int(maxLSInRun[run])/int(nLS)+1
     for iLS in range(1,nBins+1):
         for iTrain in bunchTrains[run]:
@@ -379,7 +453,7 @@ for run in maxLSInRun.keys():
                     name=name+"0"
                 name=name+str(iLS)
                 nBunch=len(bunchTrains[run][iTrain])
-                print name,run,iPlot
+                #print name,run,iPlot
                 if iPlot==0:
                     print "set max", hists[histType][name].GetMaximum(),hists["HFLumi_perBX"][name].GetMaximum()
                     hists[histType][name].SetMinimum(0.01)
@@ -412,13 +486,15 @@ ratioProfiles["PLTOverHF"]={}
 
 groups=["solo","first","train"]
 legs={}
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     legs[run]={}
     nBins=int(maxLSInRun[run])/int(nLS)+1
     for histType in ratioProfiles:
         ratioProfiles[histType][run]={}
         for group in groups:
-            ratioProfiles[histType][run][group]=ROOT.TProfile("profile"+group+str(run)+histType,group+str(run),60,0,3.5,0.95,1.10)
+            ratioProfiles[histType][run][group]=ROOT.TProfile("profile"+group+str(run)+histType,group+str(run),65,0,5.5,0.85,1.10)
+            #ratioProfiles[histType][run][group]=ROOT.TProfile("profile"+group+str(run)+histType,group+str(run),40,0,0.2,0.85,1.10)
 
     for histType in ratios:
         ratios[histType][run]={}
@@ -443,11 +519,12 @@ print soloBunches
 print bunchTrains
 
 
-for run in maxLSInRun.keys():
+#for run in maxLSInRun,keys():
+for run in runs:
     nBins=int(maxLSInRun[run])/int(nLS)+1
     for histType in ratios:
         iSolo=0
-        print "solo",histType
+        #print "solo",histType
         for soloBX in soloBunches[run]:
             for iLSBin in range(1,hists["PC_lumi_B3p8_perBX"][str(run)+"2d"].GetNbinsX()+1):
                 if histType=="PLTOverHF":
@@ -467,18 +544,18 @@ for run in maxLSInRun.keys():
                     ratioProfiles[histType][run]["solo"].Fill(hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,soloBX),ratio)
                     ratios[histType][run]["solo"].SetPoint(iSolo,hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,soloBX),ratio)
                     iSolo=iSolo+1
-                print iLSBin,soloBX,denomlumi,numlumi,ratio
+                #print iLSBin,soloBX,denomlumi,numlumi,ratio
        
         trainCounter=0
         for iTrain in bunchTrains[run]:
-            print "train",iTrain,"size",len(bunchTrains[run][iTrain])
+            #print "train",iTrain,"size",len(bunchTrains[run][iTrain])
 
             iFirstBin=0
             iTrainBin=0
             iBX=0
             for BX in bunchTrains[run][iTrain]:
                 for iLSBin in range(1,hists["PC_lumi_B3p8_perBX"][str(run)+"2d"].GetNbinsX()+1):
-                    print "iLSBin,",iLSBin,
+                    #print "iLSBin,",iLSBin,
                     if histType=="PLTOverHF":
                         numlumi=hists["HFLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX) 
                         denomlumi=hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX) 
@@ -493,21 +570,25 @@ for run in maxLSInRun.keys():
                         ratio=numlumi/denomlumi
                         if iBX==0:
                             #print "first",trainCounter,iLSBin,BX,histType,numlumi,denomlumi,ratio
-                            print "first",iFirstBin,BX,histType,numlumi,denomlumi,ratio
+                            #print "first",iFirstBin,BX,histType,numlumi,denomlumi,ratio
                             #ratios[histType][run]["first"+str(iTrain)].SetPoint(iFirstBin,denomlumi,ratio)
                             #ratioProfiles[histType][run]["first"].Fill(denomlumi,ratio)
-                            ratios[histType][run]["first"+str(iTrain)].SetPoint(iFirstBin,hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
-                            ratioProfiles[histType][run]["first"].Fill(hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            #ratios[histType][run]["first"+str(iTrain)].SetPoint(iFirstBin,hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            #ratioProfiles[histType][run]["first"].Fill(hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            ratios[histType][run]["first"+str(iTrain)].SetPoint(iFirstBin,hists["BCMFLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            ratioProfiles[histType][run]["first"].Fill(hists["BCMFLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
                             iFirstBin=iFirstBin+1
                         else:
                             trainBXBin=nBins*(iBX-1)+iLSBin
                             #print "train",trainBXBin,iBX-1,iLSBin,BX,histType,numlumi,denomlumi,ratio
-                            print "train",trainCounter,iTrainBin,iLSBin,iBX,BX,histType,numlumi,denomlumi,ratio
+                            #print "train",trainCounter,iTrainBin,iLSBin,iBX,BX,histType,numlumi,denomlumi,ratio
                             #ratios[histType][run]["train"+str(iTrain)].SetPoint(trainBXBin,denomlumi,ratio)
                             #ratios[histType][run]["train"+str(iTrain)].SetPoint(iTrainBin,denomlumi,ratio)
                             #ratioProfiles[histType][run]["train"].Fill(denomlumi,ratio)
-                            ratios[histType][run]["train"+str(iTrain)].SetPoint(iTrainBin,hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
-                            ratioProfiles[histType][run]["train"].Fill(hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            #ratios[histType][run]["train"+str(iTrain)].SetPoint(iTrainBin,hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            #ratioProfiles[histType][run]["train"].Fill(hists["PLTLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            ratios[histType][run]["train"+str(iTrain)].SetPoint(iTrainBin,hists["BCMFLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
+                            ratioProfiles[histType][run]["train"].Fill(hists["BCMFLumi_perBX"][str(run)+"2d"].GetBinContent(iLSBin,BX),ratio)
                             iTrainBin=iTrainBin+1
                 iBX=iBX+1
             trainCounter=trainCounter+1
@@ -524,10 +605,12 @@ if doFits:
             iGroup=0
             linearFitResults[histType][run]={}
             for group in groups:
-                fitFuncs[histType][run][group]=ROOT.TF1("pol1"+group+str(run)+histType,"[0]+[1]*x")
+                fitFuncs[histType][run][group]=ROOT.TF1("pol0"+group+str(run)+histType,"[0]")
+                #fitFuncs[histType][run][group]=ROOT.TF1("pol1"+group+str(run)+histType,"[0]+[1]*x")
                 ratioProfiles[histType][run][group].Fit(fitFuncs[histType][run][group])
                 try:
-                    linearFitResults[histType][run][group]=[round_to_reference(fitFuncs[histType][run][group].GetParameter(0), fitFuncs[histType][run][group].GetParError(0)),round_to_reference(fitFuncs[histType][run][group].GetParameter(1), fitFuncs[histType][run][group].GetParError(1))]
+                    #linearFitResults[histType][run][group]=[round_to_reference(fitFuncs[histType][run][group].GetParameter(0), fitFuncs[histType][run][group].GetParError(0)),round_to_reference(fitFuncs[histType][run][group].GetParameter(1), fitFuncs[histType][run][group].GetParError(1))]
+                    linearFitResults[histType][run][group]=[round_to_reference(fitFuncs[histType][run][group].GetParameter(0), fitFuncs[histType][run][group].GetParError(0)),"-"]
                 except:
                     print "failed to round",fitFuncs[histType][run][group].GetParameter(0), fitFuncs[histType][run][group].GetParError(0),fitFuncs[histType][run][group].GetParameter(1), fitFuncs[histType][run][group].GetParError(1)
                     linearFitResults[histType][run][group]=[-99,-99]
@@ -544,14 +627,15 @@ for histType in ratioProfiles:
             if doFits:
                 fitFuncs[histType][run][group].SetLineColor(colors[iGroup%len(colors)])
             if iGroup==0:
-                ratioProfiles[histType][run][group].SetTitle("Ratio Profile in "+str(run)+";PLT SBIL [Hz/ub];Ratio")
+                #ratioProfiles[histType][run][group].SetTitle("Ratio Profile in "+str(run)+";PLT SBIL [Hz/ub];Ratio")
+                ratioProfiles[histType][run][group].SetTitle("Ratio Profile in "+str(run)+";BCM1F SBIL [Hz/ub];Ratio")
                 ratioProfiles[histType][run][group].Draw()
                 if histType.find("HFLumi")!=-1:
                     ratioProfiles[histType][run][group].SetMaximum(1.2)
-                    ratioProfiles[histType][run][group].SetMinimum(0.95)
+                    ratioProfiles[histType][run][group].SetMinimum(0.85)
                 else:
-                    ratioProfiles[histType][run][group].SetMaximum(1.1)
-                    ratioProfiles[histType][run][group].SetMinimum(0.95)
+                    ratioProfiles[histType][run][group].SetMaximum(1.2)
+                    ratioProfiles[histType][run][group].SetMinimum(0.9)
             else:
                 ratioProfiles[histType][run][group].Draw("same")
             if doFits:
@@ -570,7 +654,8 @@ multiGraphs={}
 
 for histType in ratios:
     multiGraphs[histType]={}
-    for run in maxLSInRun.keys():
+    #for run in maxLSInRun,keys():
+    for run in runs:
         multiGraphs[histType][run]={}
         for group in groups: # different multigraphs for each
             multiGraphs[histType][run][group]=ROOT.TMultiGraph() 
