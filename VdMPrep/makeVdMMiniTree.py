@@ -127,6 +127,13 @@ tree.SetBranchStatus("nPixelClusters",1)
 tree.SetBranchStatus("layer*",1)
 tree.SetBranchStatus("bunchCrossing",1)
 tree.SetBranchStatus("timeStamp_begin",1)
+###
+#Vtx Stuff
+###
+tree.SetBranchStatus("nVtx",1)
+tree.SetBranchStatus("vtx_isGood",1)
+tree.SetBranchStatus("vtx_isFake",1)
+tree.SetBranchStatus("vtx_nTrk",1)
 
 #######################
 # Make mod veto list  #
@@ -165,6 +172,11 @@ BXid            = array.array( 'l', [ 0 ] )
 nCluster        = array.array( 'd', [ 0 ] )
 nClusterPerLayer= array.array( 'd', 5*[ 0 ] )
 
+nVtx            = array.array('d',[0])
+vtx_isGood      = array.array('d',[0])
+vtx_isFake      = array.array('d',[0])
+vtx_nTrk        = array.array('d',[0])
+
 
 newtree.Branch("run",run,"run/I")
 newtree.Branch("LS",LS,"LS/I")
@@ -173,7 +185,7 @@ newtree.Branch("timeStamp",timeStamp,"timeStamp/i")
 newtree.Branch("BXid",BXid,"BXid/I")
 newtree.Branch("nCluster",nCluster,"nCluster/D")
 newtree.Branch("nClusterPerLayer",nClusterPerLayer,"nClusterPerLayer[5]/D")
-
+newtree.Branch("nVtx",nVtx,"nVtx/D")
 
 
 #######################
@@ -211,6 +223,12 @@ for iev in range(nentries):
         pixelCount[layer]=pixelCount[layer]+clusters
         if layer!=1:
             pixelCount[0]=pixelCount[0]+clusters
+
+    nVtx[0]=0
+    for i in range(0,tree.nVtx):
+        #print tree.vtx_isGood[i]
+        if tree.vtx_isGood[i]==True and tree.vtx_isFake[i]==False and tree.vtx_nTrk[i]>14:
+		        nVtx[0]=nVtx[0]+1				
 
     
     run[0]=tree.run
