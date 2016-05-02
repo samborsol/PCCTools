@@ -67,7 +67,7 @@ print "globalConfigKeys",globalConfigKeys
 
 ##3) Search the file 
 ##/pixelscratch/pixelscratch/config/Pix/configurations.txt 
-##for the string “key 100965” and note the detconfig version which is just below. 
+##for the string "key 100965" and note the detconfig version which is just below. 
 ## 
 ##In this case: 
 ##
@@ -109,7 +109,7 @@ badModules=[]
 ##4) You can see the disabled modules in the file 
 ##/pixelscratch/pixelscratch/config/Pix/detconfig/95/detectconfig.dat 
 ## 
-##Now you can search for the module with the “noAnalogSignal” string. 
+##Now you can search for the module with the "noAnalogSignal" string. 
 for detConfig in detConfigs:
     detectorConfigFileName="/pixelscratch/pixelscratch/config/Pix/detconfig/"+detConfig+"/detectconfig.dat"
     detectorConfigFile=open(detectorConfigFileName)
