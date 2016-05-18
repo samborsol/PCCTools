@@ -18,7 +18,7 @@ parser.add_argument("--noType1", action='store_true', default=False, help="Only 
 parser.add_argument("--noType2", action='store_true', default=False, help="Only apply the type1 correction")
 parser.add_argument("-u","--useresponse", action='store_true', default=False, help="Use the final response instead of the real activity to calculate the Type2 Correction")
 parser.add_argument('-b', '--batch',   action='store_true', default=False, help="Batch mode (doesn't make GUI TCanvases)")
-parser.add_argument('-p', '--par', default="0.059,0.0,0.0007,0.013", help="The parameters for type1 and type2 correction (0.059,0.0,0.0007,0.013)")
+parser.add_argument('-p', '--par', default="0.074,0.0,0.00086,0.014", help="The parameters for type1 and type2 correction (0.059,0.0,0.0007,0.013)")
 parser.add_argument('--filterByRunInFileName', default=False, action='store_true', help="Filter by run in the name of the files.")
 parser.add_argument('--nLSInLumiBlock', default=500, type=int, help="Number of LSs to group for evaluation (Default:  500)")
 parser.add_argument('--buildFromScratch', default=1, type=int, help="Start from cert trees (default); do --buildFromScratch=0 to start from \"Before\" histograms")
@@ -203,7 +203,7 @@ allLumiType1And2CorrPerBX={}
 
 corrRatioPerBX={}
 noiseToCorrRatio={}
-
+Fill={}
 LBKeys=[]
 
 
@@ -245,6 +245,7 @@ if args.buildFromScratch==1:
                 continue
             iLB=(tree.LS-1)/args.nLSInLumiBlock
             LBKey=str(tree.run)+"_LS"+str(iLB*args.nLSInLumiBlock+1)+"_LS"+str((iLB+1)*args.nLSInLumiBlock)
+            Fill[LBKey]=str(tree.fill)
             #print tree.run,tree.LS,iLB,LBKey
             for ibx in range(tree.nBX):
                 try:
@@ -252,7 +253,7 @@ if args.buildFromScratch==1:
                     normPerBX[LBKey].Fill(tree.PCBXid[ibx], 1)
                 except:
                     print "problem filling allLumiPerBX or normPerBX"
-                    print tree.run,tree.LS,iLB,LBKey
+                    print tree.fill,tree.run,tree.LS,iLB,LBKey
     
         tfile.Close()
     
@@ -401,12 +402,12 @@ for LBKey in LBKeys:
     noiseToCorrRatio[LBKey].Divide(corrPerBX[LBKey])
     noiseToCorrRatio[LBKey].SetError(zeroes)
     
-    newfile.WriteTObject(allLumiPerBX[LBKey],  "Before_Corr_"+LBKey)
-    newfile.WriteTObject(allLumiType1CorrPerBX[LBKey], "After_TypeI_Corr_"+LBKey)
-    newfile.WriteTObject(allLumiType1And2CorrPerBX[LBKey], "After_TypeI_TypeII_Corr_"+LBKey)
-    newfile.WriteTObject(allCorrLumiPerBX[LBKey], "After_Corr_"+LBKey)
-    newfile.WriteTObject(noisePerBX[LBKey], "Noise_"+LBKey)
-    newfile.WriteTObject(corrPerBX[LBKey], "Overall_Correction_"+LBKey)
-    newfile.WriteTObject(corrRatioPerBX[LBKey], "Ratio_Correction_"+LBKey)
+    newfile.WriteTObject(allLumiPerBX[LBKey],  "Before_Corr_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(allLumiType1CorrPerBX[LBKey], "After_TypeI_Corr_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(allLumiType1And2CorrPerBX[LBKey], "After_TypeI_TypeII_Corr_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(allCorrLumiPerBX[LBKey], "After_Corr_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(noisePerBX[LBKey], "Noise_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(corrPerBX[LBKey], "Overall_Correction_"+Fill[LBKey]+"_"+LBKey)
+    newfile.WriteTObject(corrRatioPerBX[LBKey], "Ratio_Correction_"+Fill[LBKey]+"_"+LBKey)
     #newfile.WriteTObject(ratio_gap, "Ratio_Nonlumi_"+LBKey)
-    newfile.WriteTObject(noiseToCorrRatio[LBKey], "Ratio_Noise_"+LBKey)
+    newfile.WriteTObject(noiseToCorrRatio[LBKey], "Ratio_Noise_"+Fill[LBKey]+"_"+LBKey)
