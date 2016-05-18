@@ -18,7 +18,7 @@ parser.add_argument("--noType1", action='store_true', default=False, help="Only 
 parser.add_argument("--noType2", action='store_true', default=False, help="Only apply the type1 correction")
 parser.add_argument("-u","--useresponse", action='store_true', default=False, help="Use the final response instead of the real activity to calculate the Type2 Correction")
 parser.add_argument('-b', '--batch',   action='store_true', default=False, help="Batch mode (doesn't make GUI TCanvases)")
-parser.add_argument('-p', '--par', default="0.074,0.0,0.00086,0.014", help="The parameters for type1 and type2 correction (0.059,0.0,0.0007,0.013)")
+parser.add_argument('-p', '--par', default="0.074,0.0,0.00086,0.014", help="The parameters for type1 and type2 correction (0.074,0.0,0.00086,0.014)")
 parser.add_argument('--filterByRunInFileName', default=False, action='store_true', help="Filter by run in the name of the files.")
 parser.add_argument('--nLSInLumiBlock', default=500, type=int, help="Number of LSs to group for evaluation (Default:  500)")
 parser.add_argument('--buildFromScratch', default=1, type=int, help="Start from cert trees (default); do --buildFromScratch=0 to start from \"Before\" histograms")
@@ -131,7 +131,7 @@ if args.onefile!="":
 
 if args.dir!="":
     if args.dir.find("/store")==0:
-        eosfilenames=subprocess.check_output(["/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select","ls", args.dir])
+        eosfilenames=subprocess.check_output(["/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select","ls", args.dir])
         eosfilenames=eosfilenames.split("\n")
         for filename in eosfilenames:
             if filename is not "" and filename.find(".root")!=-1:
