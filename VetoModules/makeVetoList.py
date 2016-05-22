@@ -5,6 +5,7 @@ parser = argparse.ArgumentParser(description='Find a ROOT file among many with t
 parser.add_argument('-r', '--runs', type=str, default="", help="Comma-separated list of runs to find vetoed modules in (e.g. 262204,262205,262235)")
 parser.add_argument('--modStrToNum',  default="modList.txt", help="Text file containing lines like \'302055700 BPix_BpI_SEC4_LYR1_LDR5F_MOD1\'")
 parser.add_argument('-o', '--output', default="vetoModules.txt", help="Name of output file.")
+parser.add_argument('--pathFlag', default="pixel", help="pixel for established list; pixelscratch/pixelscratch for new lists")
 args = parser.parse_args()
 
 if args.runs=="":
@@ -45,7 +46,7 @@ for modLine in modLines:
 for run in runs:
     runDir=int(run)/1000
     runDir=runDir*1000
-    pixelConfigFileName="/pixel/data0/Run_"+str(runDir)+"/Run_"+str(run)+"/PixelConfigurationKey.txt"
+    pixelConfigFileName="/"+args.pathFlag+"/data0/Run_"+str(runDir)+"/Run_"+str(run)+"/PixelConfigurationKey.txt"
     if os.path.isfile(pixelConfigFileName):
         pixelConfigFile=open(pixelConfigFileName)
     else:
