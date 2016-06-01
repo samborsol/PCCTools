@@ -5,7 +5,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Make standard plots from mini tree')
 parser.add_argument('--minitree', type=str, default="", help="Mini tree file name")
 parser.add_argument('--lsrange', default="0,400", help="Range of lumi sections to plot (default:  0,400)")
-parser.add_argument('--batch', default=0, help="Run in batch mode (don't pop up canvases)")
+parser.add_argument('--batch', default=1, help="Run in batch mode (don't pop up canvases)")
 args = parser.parse_args()
 
 tfile=ROOT.TFile.Open(args.minitree)
@@ -69,13 +69,24 @@ for BCID in BCIDs:
     #PCCRateHists[BCID]=ROOT.TH1F("PCCrate"+str(BCID),"Rate of "+str(BCID)+";Lumi Section;PCC Rate (Clusters/Event)",nLS,lsRange[0],lsRange[1])
 PCCRateHists["PCCtotalrate"]=ROOT.TH1F("PCCtotalrate","Total Rate;Lumi Section;PCC Rate (Clusters/Event)",nLS,lsRange[0],lsRange[1])
 
+iColor=0
+for PCCRateHistName in PCCRateHists:
+    PCCRateHists[PCCRateHistName].SetLineWidth(2)
+    if PCCRateHistName=="PCCtotalrate":
+        ttree.Draw("LS>>PCCtotalrate","("+LSRangeStr+")*nCluster","histgroff")
+        PCCRateHists[PCCRateHistName].SetLineColor(1)
+    else:
+        ttree.Draw("LS>>PCCrate"+str(PCCRateHistName),"("+LSRangeStr+"&&BXid=="+str(PCCRateHistName)+")*nCluster","histgroff")
+        PCCRateHists[PCCRateHistName].SetLineColor(colors[iColor%len(colors)])
+        iColor=iColor+1
+    PCCRateHists[PCCRateHistName].Divide(eventRateHists[eventRateHistName]*23.31)
+
+
 VtxRateHists={}
 for BCID in BCIDs:
     VtxRateHists[BCID]=ROOT.TH1F("Vtxrate"+str(BCID),";Lumi Section;Tight VTX Rate (Vertices/Event)",nLS,lsRange[0],lsRange[1])
     #VtxRateHists[BCID]=ROOT.TH1F("Vtxrate"+str(BCID),"Rate of "+str(BCID)+";Lumi Section;Tight VTX Rate (Vertices/Event)",nLS,lsRange[0],lsRange[1])
 VtxRateHists["Vtxtotalrate"]=ROOT.TH1F("Vtxtotalrate","Total Rate;Lumi Section;Tight VTX Rate (Vertices/Event)",nLS,lsRange[0],lsRange[1])
-
-
 
 iColor=0
 for vtxRateHistName in VtxRateHists:
@@ -88,18 +99,6 @@ for vtxRateHistName in VtxRateHists:
         VtxRateHists[vtxRateHistName].SetLineColor(colors[iColor%len(colors)])
         iColor=iColor+1
     VtxRateHists[vtxRateHistName].Divide(eventRateHists[eventRateHistName]*23.31)
-
-iColor=0
-for PCCRateHistName in PCCRateHists:
-    PCCRateHists[PCCRateHistName].SetLineWidth(2)
-    if PCCRateHistName=="PCCtotalrate":
-        ttree.Draw("LS>>PCCtotalrate","("+LSRangeStr+")*nCluster","histgroff")
-        PCCRateHists[PCCRateHistName].SetLineColor(1)
-    else:
-        ttree.Draw("LS>>PCCrate"+str(PCCRateHistName),"("+LSRangeStr+"&&BXid=="+str(PCCRateHistName)+")*nCluster","histgroff")
-        PCCRateHists[PCCRateHistName].SetLineColor(colors[iColor%len(colors)])
-        iColor=iColor+1
-    PCCRateHists[PCCRateHistName].Divide(eventRateHists[eventRateHistName]*23.31)
 
 
 
@@ -124,27 +123,6 @@ can.SaveAs("eventRatePerBCID_"+str(ttree.run)+".png")
 
 
 
-VtxRateHists["Vtxtotalrate"].Draw("hist")
-can.Update()
-can.SaveAs("totalVtxRate_"+str(ttree.run)+".png")
-
-first=True
-leg=ROOT.TLegend(0.7,0.3,0.8,0.6)
-for BCID in BCIDs:
-    if first:
-        VtxRateHists[BCID].Draw("hist")
-        first=False
-    else:
-        VtxRateHists[BCID].Draw("histsame")
-    leg.AddEntry(eventRateHists[BCID],str(BCID),"l")
-        
-leg.Draw("same")
-        
-can.Update()
-can.SaveAs("vtxRatePerBCID_"+str(ttree.run)+".png")
-
-
-
 PCCRateHists["PCCtotalrate"].Draw("hist")
 can.Update()
 can.SaveAs("totalPCCRate_"+str(ttree.run)+".png")
@@ -157,11 +135,32 @@ for BCID in BCIDs:
         first=False
     else:
         PCCRateHists[BCID].Draw("histsame")
-    leg.AddEntry(eventRateHists[BCID],str(BCID),"l")
+    leg.AddEntry(PCCRateHists[BCID],str(BCID),"l")
         
 leg.Draw("same")
         
 can.Update()
 can.SaveAs("PCCRatePerBCID_"+str(ttree.run)+".png")
+
+
+
+VtxRateHists["Vtxtotalrate"].Draw("hist")
+can.Update()
+can.SaveAs("totalVtxRate_"+str(ttree.run)+".png")
+
+first=True
+leg=ROOT.TLegend(0.7,0.3,0.8,0.6)
+for BCID in BCIDs:
+    if first:
+        VtxRateHists[BCID].Draw("hist")
+        first=False
+    else:
+        VtxRateHists[BCID].Draw("histsame")
+    leg.AddEntry(VtxRateHists[BCID],str(BCID),"l")
+        
+leg.Draw("same")
+        
+can.Update()
+can.SaveAs("vtxRatePerBCID_"+str(ttree.run)+".png")
 
 
