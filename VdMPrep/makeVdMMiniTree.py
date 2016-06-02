@@ -11,6 +11,7 @@ parser.add_argument('--label', type=str, default="", help="Label for output file
 parser.add_argument('--mintime', type=float, default=0, help="Minimum time stamp")
 parser.add_argument('--maxtime', type=float, default=math.pow(2,66), help="Maximum time stamp")
 parser.add_argument('--vetoModules', type=str, default="vetoModules.txt", help="Text file containing list of pixel modules to veto (default: vetoModules.txt)")
+parser.add_argument('--outputDir', type=str, default="", help="Directory to save file in (default:  local path)")
 
 args = parser.parse_args()
 
@@ -161,7 +162,12 @@ print vetoModules
 #######################
 newfilename=filename.split("/")[-1].split(".")[0]+"_"+args.label+".root"
 
-newfile=ROOT.TFile(newfilename,"recreate")
+if args.outputDir != "":
+    if args.outputDir.find("/store")==0:
+        args.outputDir="root://eoscms//eos/cms"+args.outputDir
+    newfilename=args.outputDir+"/"+newfilename
+
+newfile=ROOT.TFile.Open(newfilename,"recreate")
 newtree=ROOT.TTree("pccminitree","pcc vdm scan data")
 
 run             = array.array( 'l', [ 0 ] )
