@@ -10,14 +10,59 @@ parser.add_argument("-l",  "--label",default="", help="For output files")
 parser.add_argument("-r",  "--runs",default="", help="Comma separated list of runs.")
 parser.add_argument("--nbxfile",default="NBX.csv", help="CSV file with run and NBX.")
 parser.add_argument("--corrfile",default="", help="Corection file.")
+parser.add_argument("--corrtfile",default="", help="Corection file of histograms.")
 parser.add_argument("--yaml",default="", help="yaml file to append.")
+parser.add_argument("--xing",default=1, help="Write per bx files.  Default 1.")
 parser.add_argument("--justyaml",default=0, help="Only write yaml")
-parser.add_argument("--xsec",default=9.05e6, help="PC cross section (default:  9.05e6 ub).")
+parser.add_argument("--xsec",default=9.05e6, type=float, help="PC cross section (default:  9.05e6 ub).")
 args=parser.parse_args()
 
 
 #Fill   Bfield    Runs 
 fillInfo={}
+fillInfo["4990"]=["3.801",[274440,274441,274442,274443]]
+fillInfo["4988"]=["3.801",[274420,274421,274422]]
+fillInfo["4985"]=["3.801",[274387,274388]]
+fillInfo["4984"]=["3.801",[274382]]
+fillInfo["4980"]=["3.801",[274335,274336,274337,274338,274339,274344,274345]]
+fillInfo["4979"]=["3.801",[274314,274315,274316,274317,274318,274319]]
+fillInfo["4976"]=["3.801",[274282,274283,274284,274285,274286]]
+fillInfo["4965"]=["3.801",[274250,274251]]
+fillInfo["4964"]=["3.801",[274240,274241,274243,274244]]
+fillInfo["4961"]=["3.801",[274198,274199,274200]]
+fillInfo["4960"]=["3.801",[274172]]
+fillInfo["4958"]=["3.801",[274157,274159,274160,274161]]
+fillInfo["4956"]=["3.801",[274142,274146]]
+fillInfo["4954"]=["3.801",[274100,274102,274103,274104,274105,274106,274107,274108]]
+fillInfo["4953"]=["3.801",[274094]]
+fillInfo["4947"]=["3.801",[273725,273728,273730]]
+fillInfo["4945"]=["3.801",[273588,273589,273590,273591,273592,273593]]
+fillInfo["4942"]=["3.801",[273554,273555]]
+fillInfo["4937"]=["3.801",[273522,273523,273526,273531,273537]]
+fillInfo["4935"]=["3.801",[273502,273503,273504]]
+fillInfo["4930"]=["3.800",[273492,273493,273494]]
+fillInfo["4926"]=["3.799",[273445,273446,273447,273448,273449,273450]]
+fillInfo["4925"]=["3.799",[273425,273426]]
+fillInfo["4924"]=["3.799",[273402,273403,273404,273405,273406,273407,273408,273409,273410,273411,273412]]
+fillInfo["4919"]=["3.799",[273290,273291,273292,273294,273295,273296,273299,273301,273302]]
+fillInfo["4915"]=["3.799",[273150,273158]]
+fillInfo["4910"]=["3.799",[273013,273017,273063]]
+fillInfo["4906"]=["3.799",[272935,272936]]
+fillInfo["4905"]=["3.799",[272922,272923,272924,272925,272926,272927,272930]]
+fillInfo["4896"]=["3.799",[272827,272828]]
+fillInfo["4895"]=["3.799",[272811,272812,272814,272815,272816,272818]]
+fillInfo["4892"]=["3.799",[272798]]
+fillInfo["4890"]=["3.799",[272782,272783,272784,272785,272786,272787]]
+fillInfo["4889"]=["3.799",[272774,272775,272776]]
+fillInfo["4888"]=["3.799",[72760,272761,272762]]
+fillInfo["4879"]=["3.799",[272006,272007,272008,272010,272011,272012,272014,272016,272017,272018,272019,272021,272022]]
+fillInfo["4874"]=["0.059",[271645,271646,271648,271649,271651,271652,271653,271654,271656,271658]]
+fillInfo["4861"]=["0.019",[271304,271305,271306,271307,271310,271312,271313,271314,271317,271318,271319,271321,271322,271323,271324,271327,271328,271329,271330,271331,271332,271336,271337,271338,271342]]
+fillInfo["4856"]=["0.019",[271184,271187,271188,271190,271191,271192,271193,271195,271196,271197,271213,271214,271215,271216,271217,271219,271220,271221,271228,271230,271231,271232,271234]]
+fillInfo["4852"]=["0.019",[71076,271077,271080,271081,271082,271083,271084]]
+fillInfo["4851"]=["0.019",[71036,271037,271044,271045,271046,271047,271048,271049,271050,271052,2710]]
+
+
 fillInfo["4647"]=["3.798513298",[262325,262326,262327,262328]]
 fillInfo["4643"]=["3.798513298",[262270,262271,262272,262273,262274,262275,262277]]
 fillInfo["4640"]=["3.798513298",[262248,262249,262250,262252,262253,262254]]
@@ -159,13 +204,15 @@ def findRunInFill(run):
 
 
 NBXPerRun={}
+NBXPerFill={}
 nbxfile=open(args.nbxfile)
 for line in nbxfile.readlines():
     items=line.split(",")
     try:
-        run=int(items[0])
+        #run=int(items[0])
+        fill=int(items[0])
         NBX=int(items[1])
-        NBXPerRun[run]=NBX
+        NBXPerFill[fill]=NBX
     except:
         print "Problem with line",line
 
@@ -174,44 +221,51 @@ nbxfile.close()
 
 
 corrPerRun={}
+corrPerFill={}
 corrfile=open(args.corrfile)
 for line in corrfile.readlines():
     items=line.split(",")
     try:
-        run=int(items[0])
-        LS1=int(items[1])
-        LSN=int(items[2])
-        corrFac=float(items[3])
-        if corrFac<0.85: 
-            print run,corrFac,"not using"
-            continue
-        if not corrPerRun.has_key(run):
-            corrPerRun[run]={}
-        corrPerRun[run][(LS1,LSN)]=corrFac
+        #run=int(items[0])
+        #LS1=int(items[1])
+        #LSN=int(items[2])
+        #corrFac=float(items[3])
+        #if corrFac<0.85: 
+        #    print run,corrFac,"not using"
+        #    continue
+        #if not corrPerRun.has_key(run):
+        #    corrPerRun[run]={}
+        #corrPerRun[run][(LS1,LSN)]=corrFac
+        fill=int(items[0])
+        corrFac=float(items[1])
+        corrPerFill[fill]=corrFac
     except:
         print "Problem with line",line
 
 corrfile.close()
-print corrPerRun
+print corrPerFill
 
+if args.corrtfile!="":
+    corrtfile=ROOT.TFile.Open(args.corrtfile)
 
 f_LHC=11245.6
 
 rawPCCFile=open("rawPCC"+args.label+".csv", 'a+')
 PCLumiFile=open("PCLumi"+args.label+".csv", 'a+')
+if args.xing==1:
+    rawPCCFilePerBX=open("rawPCCPerBX"+args.label+".csv", 'a+')
+    PCLumiFilePerBX=open("PCLumiPerBX"+args.label+".csv", 'a+')
 if args.yaml!="":
     yamlFile=open(args.yaml, 'a+')
 
-rawPCCFile.write("run,LS,PCC\n")
-PCLumiFile.write("run,LS,PCLumi\n")
 
 if args.yaml!="":
     if len(yamlFile.readlines())==0:
-        yamlFile.write("name: pcccorrv3\n")
+        yamlFile.write("name: pcc2016v1\n")
         yamlFile.write("applyto: lumi\n")
         yamlFile.write("datasource: pxl\n")
         yamlFile.write("istypedefault: 0\n")
-        yamlFile.write("comments: First all 2015 data\n")
+        yamlFile.write("comments:  2016 data up to June 2nd\n")
         yamlFile.write("since:\n")
 
     # Average per run
@@ -230,39 +284,48 @@ if args.yaml!="":
     #    yamlFile.write("              comments: 2015, egev 6500, PROTPHYS, preliminary VdM calibration\n")
 
     # Average per fill
-    runs=corrPerRun.keys()
-    runs.sort()
+    #runs=corrPerRun.keys()
+    #runs.sort()
+    fills=corrPerFill.keys()
+    fills.sort()
     lastFill=0
-    for run in runs:
-        thisFill=findRunInFill(run)
-        if thisFill==-1:
-            continue
-        if lastFill==0:
-            lastFill=findRunInFill(run)
-            averageCorrPerRun=0.0
-            counter=0
-        if lastFill!= thisFill or run==runs[-1]:
-            if run==runs[-1]:
-                print "LAST RUN"
-                for LSrange in corrPerRun[run]:
-                    averageCorrPerRun=averageCorrPerRun+corrPerRun[run][LSrange]
-                    counter=counter+1
-            try:
-                firstRunInFill=str(fillInfo[lastFill][1][0])
-            except:
-                print lastFill, run
-                continue
-            averageCorrPerRun=averageCorrPerRun/counter
-            yamlFile.write("      - "+str(firstRunInFill)+":\n")
-            yamlFile.write("              func: poly1dWafterglow\n")
-            yamlFile.write("              payload: {'coefs': '"+str(f_LHC/float(args.xsec))+",0.', 'afterglowthresholds':'(1,"+str(averageCorrPerRun)+")'}\n")
-            yamlFile.write("              comments: 2015, egev 6500, PROTPHYS, VdM calibration\n")
-            averageCorrPerRun=0.0
-            counter=0
-        for LSrange in corrPerRun[run]:
-            averageCorrPerRun=averageCorrPerRun+corrPerRun[run][LSrange]
-            counter=counter+1
-        lastFill=findRunInFill(run)
+    for thisFill in fills:
+        run=fillInfo[str(thisFill)][1][0]
+        #thisFill=findRunInFill(run)
+        #if thisFill==-1:
+        #    continue
+        #if lastFill==0:
+        #    lastFill=findRunInFill(run)
+        #    averageCorrPerRun=0.0
+        #    counter=0
+        #if lastFill!= thisFill or run==runs[-1]:
+        #    if run==runs[-1]:
+        #        print "LAST RUN"
+        #        for LSrange in corrPerRun[run]:
+        #            averageCorrPerRun=averageCorrPerRun+corrPerRun[run][LSrange]
+        #            counter=counter+1
+        #    try:
+        #        firstRunInFill=str(fillInfo[lastFill][1][0])
+        #    except:
+        #        print lastFill, run
+        #        continue
+        #    averageCorrPerRun=averageCorrPerRun/counter
+        #    yamlFile.write("      - "+str(firstRunInFill)+":\n")
+        #    yamlFile.write("              func: poly1dWafterglow\n")
+        #    yamlFile.write("              payload: {'coefs': '"+str(f_LHC/float(args.xsec))+",0.', 'afterglowthresholds':'(1,"+str(averageCorrPerRun)+")'}\n")
+        #    yamlFile.write("              comments: 2015, egev 6500, PROTPHYS, VdM calibration\n")
+        #    averageCorrPerRun=0.0
+        #    counter=0
+        #for LSrange in corrPerRun[run]:
+        #    averageCorrPerRun=averageCorrPerRun+corrPerRun[run][LSrange]
+        #    counter=counter+1
+        #lastFill=findRunInFill(run)
+        yamlFile.write("      - "+str(run)+":\n")
+        #yamlFile.write("              func: poly1dWafterglow\n")
+        #yamlFile.write("              payload: {'coefs': '"+str(f_LHC/float(args.xsec))+",0.', 'afterglowthresholds':'(1,"+str(corrPerFill[thisFill])+")'}\n")
+        yamlFile.write("              func: poly1d\n")
+        yamlFile.write("              payload: {'coefs': '"+str(f_LHC/float(args.xsec))+",0.'}\n")
+        yamlFile.write("              comments: 2016, egev 6500, PROTPHYS, Uncorrected VdM May 27th 2016\n")
     
     
     yamlFile.close()
@@ -276,16 +339,25 @@ if args.file!="":
     #filenames.append("root://eoscms//eos/cms"+args.file)
     filenames.append(args.file)
 if args.dir!="":
-    filesInDirString=subprocess.check_output(["/afs/cern.ch/project/eos/installation/0.3.4/bin/eos.select","ls", args.dir])
+    if args.dir.find("/store") ==0:
+        filesInDirString=subprocess.check_output(["/afs/cern.ch/project/eos/installation/0.3.15/bin/eos.select","ls", args.dir])
+    else:
+        filesInDirString=subprocess.check_output(["ls", args.dir])
     for fileInDir in filesInDirString.split("\n"):
         if fileInDir.find(".root")!=-1:
-            filenames.append("root://eoscms//eos/cms"+args.dir+"/"+fileInDir)
+            if args.dir.find("/store") ==0:
+                filenames.append("root://eoscms//eos/cms"+args.dir+"/"+fileInDir)
+            else:
+                filenames.append(args.dir+"/"+fileInDir)
 try:
     if args.runs!="":
         args.runs=args.runs.split(",")
 except:
     args.runs=""
 
+#if args.corrraw!=0:
+
+runLSs=[]
 for filename in filenames:
     try:
         tfile=ROOT.TFile.Open(filename)
@@ -295,42 +367,82 @@ for filename in filenames:
         nEntries=tree.GetEntries()
         
         print "nEntries ",nEntries
+        if args.corrtfile!="":
+            thisCorrHist=0
+            lastFill=0
         for iEnt in range(nEntries):
             tree.GetEntry(iEnt)
             if args.runs!="":
                 if str(tree.run) not in args.runs:
                     continue
 
+            if (tree.run,tree.LS) in runLSs:
+                print "already found",tree.run,tree.LS,"skipping"
+                continue
+            else:
+                runLSs.append((tree.run,tree.LS))
+
+            thisFill=int(findRunInFill(tree.run))
+            if thisFill not in NBXPerFill.keys():
+                print thisFill,"not in fills"
+                continue
+
+            if thisCorrHist==0 or thisFill!=lastFill:
+                try:
+                    thisCorrHist=corrtfile.Get("Ratio_Correction_"+str(thisFill))
+                except:
+                    print "No correction for","Ratio_Correction_"+str(thisFill)
+                    thisCorrHist=0
             #print tree.nCluster,
             #print tree.run,
-            #print NBXPerRun[tree.run],
+            #print NBXPerFill[thisFill],
             #print tree.LS
-            nClusterXNBX=tree.nCluster*NBXPerRun[tree.run]
+            #nClusterXNBX=tree.nCluster*NBXPerRun[tree.run]
+            nClusterXNBX=tree.nCluster*NBXPerFill[thisFill]
             PCLumi_uncorr=nClusterXNBX*f_LHC/args.xsec
             PCLumi_corr=PCLumi_uncorr
-            rawPCCFile.write(str(tree.run)+","+str(tree.LS)+","+str(nClusterXNBX)+"\n")
-            if corrPerRun.has_key(tree.run):
-                #print tree.run,tree.LS,PCLumi_corr
-                for LSrange in corrPerRun[run]:
-                    #print LSrange
-                    if LSrange[0]<=tree.LS and LSrange[1]>=tree.LS:
-                        try:
-                            PCLumi_corr=PCLumi_corr*corrPerRun[tree.run][LSrange]
-                            PCLumiFile.write(str(tree.run)+","+str(tree.LS)+","+str(PCLumi_corr)+"\n")
-                        except:
-                            print "No corrections available for run",tree.run,tree.LS
-                            try: 
-                                print corrPerRun[tree.run]
-                            except:
-                                print "No corrPerRun for this run"
-                        break
+            if corrPerFill.has_key(thisFill):
+                rawPCCFile.write(str(tree.run)+","+str(tree.LS)+","+str(nClusterXNBX*corrPerFill[thisFill])+"\n")
+                if args.xing==1:
+                    rawPCCFilePerBX.write(str(tree.run)+","+str(tree.LS))
+                    for ibx in range(1,3565):
+                        if ibx not in tree.PCBXid:
+                            rawPCCFilePerBX.write(","+str(0.0))
+                        else:
+                            index=list(tree.PCBXid).index(ibx)
+                            if thisCorrHist!=0:
+                                rawPCCFilePerBX.write(","+str(tree.nPCPerBXid[index]*(1-thisCorrHist.GetBinContent(ibx+1))))
+                            else:
+                                rawPCCFilePerBX.write(","+str(tree.nPCPerBXid[index]))
+                    rawPCCFilePerBX.write("\n")
+                PCLumi_corr=PCLumi_corr*corrPerFill[thisFill]
+                PCLumiFile.write(str(tree.run)+","+str(tree.LS)+","+str(PCLumi_corr)+"\n")
+                if args.xing==1:
+                    PCLumiFilePerBX.write(str(tree.run)+","+str(tree.LS))
+                    for ibx in range(1,3565):
+                        if ibx not in tree.PCBXid:
+                            PCLumiFilePerBX.write(","+str(0.0))
+                        else:
+                            index=list(tree.PCBXid).index(ibx)
+                            if thisCorrHist!=0:
+                                PCLumiFilePerBX.write(","+str(tree.nPCPerBXid[index]*(1-thisCorrHist.GetBinContent(ibx+1))))
+                            else:
+                                PCLumiFilePerBX.write(","+str(tree.nPCPerBXid[index]))
+                    PCLumiFilePerBX.write("\n")
             else:
-                print "No corrections available for run",tree.run
-            #rawPCCFile.write(str(tree.run)+","+str(tree.LS)+","+str(nClusterXNBX)+"\n")
-            #PCLumiFile.write(str(tree.run)+","+str(tree.LS)+","+str(PCLumi_corr)+"\n")
-
+                print "No corrections available for run",thisFill,tree.run
+                print "DO NOTHING... CORRECTIONS ARE REQUIRED"
+            lastFill=thisFill
+        tfile.Close()
     except:
         print "Problem with file",filename
+        try:
+            tfile.Close()
+        except:
+            print "Can't even close it"
 
 rawPCCFile.close()
 PCLumiFile.close()
+if args.xing==1:
+    rawPCCFilePerBX.close()
+    PCLumiFilePerBX.close()
