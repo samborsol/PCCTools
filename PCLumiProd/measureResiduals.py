@@ -3,7 +3,7 @@ import sys
 import os
 import argparse
 import json
-
+from ROOT import kBlue,TF1
 ROOT.gROOT.SetBatch(ROOT.kTRUE)
 
 parser=argparse.ArgumentParser()
@@ -163,6 +163,11 @@ fillInfo["3824"]=["0.018828806",[247068,247069,247070,247073,247076,247077,24707
 fillInfo["3820"]=["0.018842477",[246951,246953,246954,246956,246957,246958,246959,246960,246961,246962,246963]]
 fillInfo["3819"]=["0.0188423",[246908,246912,246913,246914,246919,246920,246923,246926,246930,246933,246934,246936]]
 
+def GetGaussianMeanError(hist):
+    fun1 = TF1("fun1", "gaus", -0.03, 0.1)
+    hist.Fit(fun1, "R")
+    MeanError=[fun1.GetParameter(1), fun1.GetParameter(2)]
+    return MeanError
 
 def findRunInFill(run):
     for fill in fillInfo:
@@ -218,12 +223,15 @@ for filename in filenames:
     for fHistName in fHistNames:
         tfile.cd() 
         #print fHistName
-        thisRun=fHistName.split("_")[2]
-        thisFill=findRunInFill(thisRun)
+        #thisRun=fHistName.split("_")[2]
+        #thisFill=findRunInFill(thisRun)
+        thisFill=fHistName.split("_")[2]
         
-        if args.json!="":
-            if thisFill not in fillSelection:
-                continue
+        #if args.json!="":
+
+        #if thisFill not in fillSelection:
+        #if thisFill!="4947":
+        #    continue
 
 
         hists[fHistName]=tfile.Get(fHistName)
@@ -255,7 +263,7 @@ for filename in filenames:
                 if lumiP1<threshold and lumiP2<threshold: # end of train
                     lastBX=ibx
                     hists[fHistName+"TrailingRatios"].Fill(lumiP1/lumi)
-                    #print ibx,lumiP1,lumi,lumiP1/lumi
+                    print ibx,lumiP1,lumi,lumiP1/lumi
             
             # how is type 2 doing?
             # from 2 bx beyond a train to 30 or next active BX
@@ -280,8 +288,9 @@ for filename in filenames:
         #print "Type2 residuels",hists[fHistName+"Type2Residuels"].GetMean()
         #print "Type2 resid RMS",hists[fHistName+"Type2Residuels"].GetRMS()
    
-
-        csvSummary.write(fHistName+","+str(hists[fHistName+"TrailingRatios"].GetMean())+","+str(hists[fHistName+"TrailingRatios"].GetRMS())+","+str(hists[fHistName+"Type2Residuels"].GetMean())+","+str(hists[fHistName+"Type2Residuels"].GetRMS())+"\n")
+        #print GetGaussianMeanError(hists[fHistName+"TrailingRatios"])
+        type1MeanError = GetGaussianMeanError(hists[fHistName+"TrailingRatios"])
+        csvSummary.write(fHistName+","+str(type1MeanError[0])+","+str(type1MeanError[1])+","+str(hists[fHistName+"Type2Residuels"].GetMean())+","+str(hists[fHistName+"Type2Residuels"].GetRMS())+"\n")
        
         if not type1ValueError.has_key(thisFill):
             type1ValueError[thisFill]={}
@@ -291,7 +300,7 @@ for filename in filenames:
             type2ValueError[thisFill]={}
             type2ValueErrorClean[thisFill]={}
         nCount=nCount+1
-        type1ValueError[thisFill][fHistName]=[hists[fHistName+"TrailingRatios"].GetMean(),hists[fHistName+"TrailingRatios"].GetMeanError()]
+        type1ValueError[thisFill][fHistName]=type1MeanError#[hists[fHistName+"TrailingRatios"].GetMean(),hists[fHistName+"TrailingRatios"].GetMeanError()]
         type2ValueError[thisFill][fHistName]=[hists[fHistName+"Type2Residuels"].GetMean(),hists[fHistName+"Type2Residuels"].GetMeanError()]
 
         if hists[fHistName+"TrailingRatios"].GetMeanError() <0.005 and hists[fHistName+"Type2Residuels"].GetMeanError()<0.00050 and hists[fHistName+"Type2Residuels"].GetMeanError()!=0:
@@ -299,7 +308,7 @@ for filename in filenames:
                 print fHistName+"TrailingRatios is",hists[fHistName+"TrailingRatios"].GetMean(),"looks dubious... skipping... need better criteria for skipping"
                 continue
             type2ValueErrorClean[thisFill][fHistName]=[hists[fHistName+"Type2Residuels"].GetMean(),hists[fHistName+"Type2Residuels"].GetMeanError()]
-            type1ValueErrorClean[thisFill][fHistName]=[hists[fHistName+"TrailingRatios"].GetMean(),hists[fHistName+"TrailingRatios"].GetMeanError()]
+            type1ValueErrorClean[thisFill][fHistName]=type1MeanError#[hists[fHistName+"TrailingRatios"].GetMean(),hists[fHistName+"TrailingRatios"].GetMeanError()]
             nClean=nClean+1
         #if hists[fHistName+"Type2Residuels"].GetMeanError() <0.005 :
         #hists[fHistName+"TrailingRatios"].Write()
@@ -406,11 +415,13 @@ for fill in fills:
     can.Update()
     type2OverTimeClean[fill].Draw()
 
-text=ROOT.TLatex(0.72,0.88,"2015  (13TeV)")
+can.SetTickx()
+can.SetTicky()
+text=ROOT.TLatex(0.72,0.92,"2016  (13TeV)")
 text.SetNDC()
 text.SetTextFont(62)
 text.SetTextSize(0.05)
-text2=ROOT.TLatex(0.15,0.88,"CMS #bf{#scale[0.75]{#it{Preliminary}}}")
+text2=ROOT.TLatex(0.15,0.92,"CMS #bf{#scale[0.75]{#it{Preliminary}}}")
 text2.SetNDC()
 text2.SetTextSize(0.05)
 text2.SetTextFont(62)
@@ -420,19 +431,27 @@ type1OverTimeClean["all"].Draw()
 type2OverTime["all"].Draw()
 type2OverTimeClean["all"].Draw()
 
+tgraph1.GetYaxis().SetTitleOffset(1.0)
+tgraph1.SetMarkerStyle(23)
+tgraph1.SetMarkerSize(1)
+tgraph1.SetMarkerColor(kBlue)
 tgraph1.Draw("AP")
 text.Draw("same")
 text2.Draw("same")
 can.Update()
-can.SaveAs("type1_residualPerFill.png")
-can.SaveAs("type1_residualPerFill.C")
+can.SaveAs("type1_residualPerFill_"+args.label+".png")
+can.SaveAs("type1_residualPerFill_"+args.label+".C")
 
+tgraph2.GetYaxis().SetTitleOffset(1.3)
+tgraph2.SetMarkerStyle(23)
+tgraph2.SetMarkerSize(1)
+tgraph2.SetMarkerColor(kBlue)
 tgraph2.Draw("AP")
 text.Draw("same")
 text2.Draw("same")
 can.Update()
-can.SaveAs("type2_residualPerFill.png")
-can.SaveAs("type2_residualPerFill.C")
+can.SaveAs("type2_residualPerFill_"+args.label+".png")
+can.SaveAs("type2_residualPerFill_"+args.label+".C")
 
 
 tgraph1.Write()
