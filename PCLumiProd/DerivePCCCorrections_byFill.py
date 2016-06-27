@@ -16,16 +16,17 @@ parser.add_argument("-a", "--all", default=True, help="Apply both the type1 and 
 parser.add_argument("--quadTrainCorr", default=0.00, help="Apply a quadratic correction to in-train BXs (Default:  0.02 ub/Hz)")
 parser.add_argument("--noType1", action='store_true', default=False, help="Only apply the type2 correction")
 parser.add_argument("--noType2", action='store_true', default=False, help="Only apply the type1 correction")
-parser.add_argument("-u","--useresponse", action='store_true', default=False, help="Use the final response instead of the real activity to calculate the Type2 Correction")
+#parser.add_argument("-u","--useresponse", action='store_true', default=False, help="Use the final response instead of the real activity to calculate the Type2 Correction")
 parser.add_argument('-b', '--batch',   action='store_true', default=False, help="Batch mode (doesn't make GUI TCanvases)")
 parser.add_argument('-p', '--par', default="0.074,0.0,0.00086,0.014", help="The parameters for type1 and type2 correction (0.074,0.0,0.00086,0.014)")
 parser.add_argument('--filterByRunInFileName', default=False, action='store_true', help="Filter by run in the name of the files.")
 parser.add_argument('--nLSInLumiBlock', default=500, type=int, help="Number of LSs to group for evaluation (Default:  500)")
 parser.add_argument('--buildFromScratch', default=1, type=int, help="Start from cert trees (default); do --buildFromScratch=0 to start from \"Before\" histograms")
+parser.add_argument('--threshold', default=0.5, type=float, help="The threshold to find active bunches")
 
 args=parser.parse_args()
 
-BXLength=3600
+BXLength=3564
 zeroes=array.array('d',[0.]*BXLength)
 def findRange( hist, cut):
     gaplist=[]
@@ -201,6 +202,7 @@ allCorrLumiPerBX={}
 allLumiType1CorrPerBX={}
 allLumiType1And2CorrPerBX={}
 
+corrRatioOverall={}
 corrRatioPerBX={}
 noiseToCorrRatio={}
 Fill={}
@@ -235,7 +237,8 @@ if args.buildFromScratch==1:
         allLumiPerBX[LBKey]=ROOT.TH1F("allLumiPerBX"+LBKey,"",BXLength,0,BXLength)
         normPerBX[LBKey]=ROOT.TH1F("normPerBX"+LBKey,"",BXLength,0,BXLength)
         corrPerBX[LBKey]=ROOT.TH1F("corrPerBX"+LBKey,"",BXLength,0,BXLength)
-   
+        corrRatioOverall[LBKey]=ROOT.TH1F("corrRatioOverall"+LBKey,"",10,0,10)
+           
     print allLumiPerBX
     #for run in runs:
     #    runnum=int(run)
@@ -350,7 +353,10 @@ for LBKey in LBKeys:
             noise+=allCorrLumiPerBX[LBKey].GetBinContent(l)
             idl+=1
     
-    noise=noise/num_cut
+    if not idl==0:
+        noise=noise/idl
+    else:
+        noise=0
          
     
     print "Apply and save type 1 corrections"
@@ -374,12 +380,12 @@ for LBKey in LBKeys:
             for j in range(i+1,BXLength):
                 binsig_i=allCorrLumiPerBX[LBKey].GetBinContent(i)
                 binfull_i=allLumiPerBX[LBKey].GetBinContent(i)
-                if not args.useresponse:
-                    allCorrLumiPerBX[LBKey].SetBinContent(j,allCorrLumiPerBX[LBKey].GetBinContent(j)-binsig_i*type2CorrTemplate.GetBinContent(j-i))
-                    corrPerBX[LBKey].SetBinContent(j, corrPerBX[LBKey].GetBinContent(j)+binsig_i*type2CorrTemplate.GetBinContent(j-i))
+                if j<BXLength:
+                    allCorrLumiPerBX[LBKey].SetBinContent(j, allCorrLumiPerBX[LBKey].GetBinContent(j)-binsig_i*type2CorrTemplate.GetBinContent(j-i))
+                    corrPerBX[LBKey].SetBinContent(j, corrPerBX[LBKey].GetBinContent(j)+binsig_i*type2CorrTemplate.GetBinContent(j-i)) 
                 else:
-                    allCorrLumiPerBX[LBKey].SetBinContent(j,allCorrLumiPerBX[LBKey].GetBinContent(j)-binfull_i*type2CorrTemplate.GetBinContent(j-i))
-                    corrPerBX[LBKey].SetBinContent(j,corrPerBX[LBKey].GetBinContent(j)+binfull_i*type2CorrTemplate.GetBinContent(j-i))
+                    allCorrLumiPerBX[LBKey].SetBinContent(j-BXLength, allCorrLumiPerBX[LBKey].GetBinContent(j-BXLength)-binsig_i*type2CorrTemplate.GetBinContent(j-i))
+                    corrPerBX[LBKey].SetBinContent(j-BXLength, corrPerBX[LBKey].GetBinContent(j-BXLength)+binsig_i*type2CorrTemplate.GetBinContent(j-i))
     
     allLumiType1And2CorrPerBX[LBKey]=allCorrLumiPerBX[LBKey].Clone()
     allLumiType1And2CorrPerBX[LBKey].SetError(zeroes)
@@ -423,8 +429,20 @@ for LBKey in LBKeys:
             allCorrLumiPerBX[LBKey].SetBinContent(ibx,binsig_i-args.quadTrainCorr*binsig_i*binsig_i)
             corrPerBX[LBKey].SetBinContent(ibx, corrPerBX[LBKey].GetBinContent(ibx)+args.quadTrainCorr*binsig_i*binsig_i)
         
+    activelumi_before = 0
+    activelumi_after = 0
+   
+    for ibx in range(1, BXLength):
+        if(allLumiPerBX[LBKey].GetBinContent(ibx)>0.5):
+            activelumi_before+=allLumiPerBX[LBKey].GetBinContent(ibx)
+            activelumi_after+=allCorrLumiPerBX[LBKey].GetBinContent(ibx)
     
+    corr_ratio=activelumi_after/activelumi_before
+
+    for i in range(1, 10):
+        corrRatioOverall[LBKey].SetBinContent(i, corr_ratio)
     print "Finish up dividing plots"
+    
     corrRatioPerBX[LBKey]=corrPerBX[LBKey].Clone()
     corrPerBX[LBKey].SetError(zeroes)
     corrRatioPerBX[LBKey].Divide(allLumiPerBX[LBKey])
@@ -443,3 +461,4 @@ for LBKey in LBKeys:
     newfile.WriteTObject(corrRatioPerBX[LBKey], "Ratio_Correction_"+LBKey)
     #newfile.WriteTObject(ratio_gap, "Ratio_Nonlumi_"+LBKey)
     newfile.WriteTObject(noiseToCorrRatio[LBKey], "Ratio_Noise_"+LBKey)
+    newfile.WriteTObject(corrRatioOverall[LBKey], "Overall_Ratio_"+LBKey)
