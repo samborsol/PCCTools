@@ -23,8 +23,48 @@ parser.add_argument('--filterByRunInFileName', default=False, action='store_true
 parser.add_argument('--nLSInLumiBlock', default=500, type=int, help="Number of LSs to group for evaluation (Default:  500)")
 parser.add_argument('--buildFromScratch', default=1, type=int, help="Start from cert trees (default); do --buildFromScratch=0 to start from \"Before\" histograms")
 parser.add_argument('--threshold', default=0.5, type=float, help="The threshold to find active bunches")
+parser.add_argument("-t", "--type1byfill", default=False, action='store_true', help="Apply Type 1 Correction by Fill")
 
 args=parser.parse_args()
+
+type1corr={}
+type1corr["4856"]=0.1004
+type1corr["4861"]=0.0877
+type1corr["4879"]=0.1105
+type1corr["4889"]=0.1105
+type1corr["4890"]=0.1153
+type1corr["4892"]=0.1147
+type1corr["4895"]=0.1108
+type1corr["4896"]=0.1083
+type1corr["4905"]=0.1106
+type1corr["4906"]=0.1132
+type1corr["4910"]=0.074
+type1corr["4915"]=0.0748
+type1corr["4919"]=0.0759
+type1corr["4924"]=0.0778
+type1corr["4925"]=0.0761
+type1corr["4926"]=0.0776
+type1corr["4930"]=0.0796
+type1corr["4935"]=0.0794
+type1corr["4937"]=0.074
+type1corr["4947"]=0.0974
+type1corr["4953"]=0.08714
+type1corr["4954"]=0.074
+type1corr["4956"]=0.08708
+type1corr["4958"]=0.09485
+type1corr["4960"]=0.09729
+type1corr["4965"]=0.1003
+type1corr["4976"]=0.09986
+type1corr["4979"]=0.1043
+type1corr["4980"]=0.1059
+type1corr["4984"]=0.1023
+type1corr["4985"]=0.1057
+type1corr["4988"]=0.1088
+type1corr["4990"]=0.1073
+type1corr["5005"]=0.0936
+type1corr["5013"]=0.1071
+type1corr["5017"]=0.1108
+type1corr["5020"]=0.09971
 
 BXLength=3564
 zeroes=array.array('d',[0.]*BXLength)
@@ -313,7 +353,7 @@ else:
                 #allLumiPerBX[LBKey]=ROOT.TH1F("allLumiPerBX"+LBKey,"",BXLength,0,BXLength)
                 noisePerBX[LBKey]=ROOT.TH1F("noisePerBX"+LBKey,"",BXLength,0,BXLength)
                 corrPerBX[LBKey]=ROOT.TH1F("corrPerBX"+LBKey,"",BXLength,0,BXLength)
-
+                corrRatioOverall[LBKey]=ROOT.TH1F("corrRatioOverall"+LBKey,"",10,0,10)
         #tfile.Close()
 
 print LBKeys
@@ -362,9 +402,24 @@ for LBKey in LBKeys:
     print "Apply and save type 1 corrections"
     if not args.noType1:
         for k in range(1,BXLength):
-            bin_k = allCorrLumiPerBX[LBKey].GetBinContent(k)
-            allCorrLumiPerBX[LBKey].SetBinContent(k+1, allCorrLumiPerBX[LBKey].GetBinContent(k+1)-bin_k*a1-bin_k*bin_k*a2)
-            corrPerBX[LBKey].SetBinContent(k+1, corrPerBX[LBKey].GetBinContent(k+1)+bin_k*a1+bin_k*bin_k*a2)
+            if not args.type1byfill: 
+                bin_k = allCorrLumiPerBX[LBKey].GetBinContent(k)
+                allCorrLumiPerBX[LBKey].SetBinContent(k+1, allCorrLumiPerBX[LBKey].GetBinContent(k+1)-bin_k*a1-bin_k*bin_k*a2)
+                corrPerBX[LBKey].SetBinContent(k+1, corrPerBX[LBKey].GetBinContent(k+1)+bin_k*a1+bin_k*bin_k*a2)
+               
+            else:
+                if type1corr.has_key(LBKey):
+                    bin_k = allCorrLumiPerBX[LBKey].GetBinContent(k)
+                    allCorrLumiPerBX[LBKey].SetBinContent(k+1, allCorrLumiPerBX[LBKey].GetBinContent(k+1)-bin_k*type1corr[LBKey])
+                    corrPerBX[LBKey].SetBinContent(k+1, corrPerBX[LBKey].GetBinContent(k+1)+bin_k*type1corr[LBKey])
+
+                else:
+                    print "No type 1 correction for this fill: ", LBKey
+                    bin_k = allCorrLumiPerBX[LBKey].GetBinContent(k)
+                    allCorrLumiPerBX[LBKey].SetBinContent(k+1, allCorrLumiPerBX[LBKey].GetBinContent(k+1)-bin_k*a1-bin_k*bin_k*a2)
+                    corrPerBX[LBKey].SetBinContent(k+1, corrPerBX[LBKey].GetBinContent(k+1)+bin_k*a1+bin_k*bin_k*a2)
+
+
     allLumiType1CorrPerBX[LBKey]=allCorrLumiPerBX[LBKey].Clone()
     allLumiType1CorrPerBX[LBKey].SetError(zeroes)
     
@@ -436,8 +491,10 @@ for LBKey in LBKeys:
         if(allLumiPerBX[LBKey].GetBinContent(ibx)>0.5):
             activelumi_before+=allLumiPerBX[LBKey].GetBinContent(ibx)
             activelumi_after+=allCorrLumiPerBX[LBKey].GetBinContent(ibx)
-    
-    corr_ratio=activelumi_after/activelumi_before
+    if not activelumi_before==0: 
+        corr_ratio=activelumi_after/activelumi_before
+    else:
+        corr_ratio=0
 
     for i in range(1, 10):
         corrRatioOverall[LBKey].SetBinContent(i, corr_ratio)
