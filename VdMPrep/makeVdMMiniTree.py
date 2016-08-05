@@ -11,6 +11,7 @@ parser.add_argument('--label', type=str, default="", help="Label for output file
 parser.add_argument('--mintime', type=float, default=0, help="Minimum time stamp")
 parser.add_argument('--maxtime', type=float, default=math.pow(2,66), help="Maximum time stamp")
 parser.add_argument('--vetoModules', type=str, default="vetoModules.txt", help="Text file containing list of pixel modules to veto (default: vetoModules.txt)")
+parser.add_argument('--outputDir', type=str, default="", help="Directory to save file in (default:  local path)")
 
 args = parser.parse_args()
 
@@ -127,6 +128,13 @@ tree.SetBranchStatus("nPixelClusters",1)
 tree.SetBranchStatus("layer*",1)
 tree.SetBranchStatus("bunchCrossing",1)
 tree.SetBranchStatus("timeStamp_begin",1)
+###
+#Vtx Stuff
+###
+tree.SetBranchStatus("nVtx",1)
+tree.SetBranchStatus("vtx_isGood",1)
+tree.SetBranchStatus("vtx_isFake",1)
+tree.SetBranchStatus("vtx_nTrk",1)
 
 #######################
 # Make mod veto list  #
@@ -154,7 +162,12 @@ print vetoModules
 #######################
 newfilename=filename.split("/")[-1].split(".")[0]+"_"+args.label+".root"
 
-newfile=ROOT.TFile(newfilename,"recreate")
+if args.outputDir != "":
+    if args.outputDir.find("/store")==0:
+        args.outputDir="root://eoscms//eos/cms"+args.outputDir
+    newfilename=args.outputDir+"/"+newfilename
+
+newfile=ROOT.TFile.Open(newfilename,"recreate")
 newtree=ROOT.TTree("pccminitree","pcc vdm scan data")
 
 run             = array.array( 'l', [ 0 ] )
@@ -165,6 +178,11 @@ BXid            = array.array( 'l', [ 0 ] )
 nCluster        = array.array( 'd', [ 0 ] )
 nClusterPerLayer= array.array( 'd', 5*[ 0 ] )
 
+nVtx            = array.array('d',[0])
+vtx_isGood      = array.array('d',[0])
+vtx_isFake      = array.array('d',[0])
+vtx_nTrk        = array.array('d',[0])
+
 
 newtree.Branch("run",run,"run/I")
 newtree.Branch("LS",LS,"LS/I")
@@ -173,7 +191,7 @@ newtree.Branch("timeStamp",timeStamp,"timeStamp/i")
 newtree.Branch("BXid",BXid,"BXid/I")
 newtree.Branch("nCluster",nCluster,"nCluster/D")
 newtree.Branch("nClusterPerLayer",nClusterPerLayer,"nClusterPerLayer[5]/D")
-
+newtree.Branch("nVtx",nVtx,"nVtx/D")
 
 
 #######################
@@ -211,6 +229,12 @@ for iev in range(nentries):
         pixelCount[layer]=pixelCount[layer]+clusters
         if layer!=1:
             pixelCount[0]=pixelCount[0]+clusters
+
+    nVtx[0]=0
+    for i in range(0,tree.nVtx):
+        #print tree.vtx_isGood[i]
+        if tree.vtx_isGood[i]==True and tree.vtx_isFake[i]==False and tree.vtx_nTrk[i]>14:
+		        nVtx[0]=nVtx[0]+1				
 
     
     run[0]=tree.run
